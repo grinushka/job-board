@@ -30,6 +30,7 @@ export default function JobSeekerLayout({
                 href: "/favorite-jobs",
                 icon: <HeartIcon />,
                 label: "Favorite Jobs",
+                authStatus: "signedIn",
               },
               {
                 href: "/ai-search",

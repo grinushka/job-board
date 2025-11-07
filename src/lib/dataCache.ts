@@ -6,9 +6,14 @@ type CacheTag =
   | "userResumes"
   | "jobListingApplications"
   | "organizationUserSettings"
+  | "userFavoriteJobs"
 
 export function getGlobalTag(tag: CacheTag) {
   return `global:${tag}` as const;
+}
+
+export function getUserFavoriteJobsTag(tag: CacheTag, userId: string) {
+  return `userFavoriteJobs:${userId}-${tag}` as const;
 }
 
 export function getJobListingTag(tag: CacheTag, jobListingId: string) {

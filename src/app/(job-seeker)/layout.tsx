@@ -4,6 +4,7 @@ import { SidebarUserButton } from "@/features/users/components/SidebarUserButton
 import {
   BrainCircuitIcon,
   ClipboardListIcon,
+  HeartIcon,
   LayoutDashboard,
   LogInIcon,
 } from "lucide-react";
@@ -16,8 +17,6 @@ export default function JobSeekerLayout({
   children: ReactNode
   sidebar: ReactNode
 }) {
-
-  console.log(sidebar);
   return (
     <AppSidebar
       content={
@@ -27,6 +26,11 @@ export default function JobSeekerLayout({
             className="mt-auto"
             items={[
               { href: "/", icon: <ClipboardListIcon />, label: "Job Board" },
+              {
+                href: "/favorite-jobs",
+                icon: <HeartIcon />,
+                label: "Favorite Jobs",
+              },
               {
                 href: "/ai-search",
                 icon: <BrainCircuitIcon />,

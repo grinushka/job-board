@@ -13,8 +13,8 @@ import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { getJobListingGlobalTag } from "@/features/jobListings/db/cache/jobListings";
 import { getOrganizationIdTag } from "@/features/organizations/db/cache/organizations";
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
-import { getUserFavoriteJobsGlobalTag } from "@/features/favoriteJobs/db/cache/favoriteJobs";
-import JobListingItemsClient from "@/features/favoriteJobs/components/JobListingItemsClient";
+import JobListingItemsClient from "./JobListingItemsClient";
+import { getUserFavoriteJobsTag } from "@/lib/dataCache";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[]>>
@@ -148,7 +148,7 @@ export async function getUserFavoriteJobs(userId: string | null): Promise<string
 
   if (userId == null) return [];
   
-  cacheTag(getUserFavoriteJobsGlobalTag());
+  cacheTag(getUserFavoriteJobsTag("userFavoriteJobs", userId));
 
   return (await db.query.UserFavoriteJobsTable.findFirst({
     where: and(

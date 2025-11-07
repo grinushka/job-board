@@ -15,7 +15,6 @@ export function SidebarUserButton() {
 
 async function SidebarUserSuspense() {
   const { user } = await getCurrentUser({ allData: true });
-  console.log("user", user);
 
   if (user == null) {
     return (

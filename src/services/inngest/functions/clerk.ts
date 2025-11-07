@@ -7,15 +7,6 @@ import { deleteUser, insertUser, updateUser } from "@/features/users/db/user";
 import { deleteOrganization, insertOrganization, updateOrganization } from "@/features/organizations/db/organizations";
 import { deleteOrganizationUserSettings } from "@/features/organizations/db/organizationUserSettings";
 import { insertOrganizationUserSettings } from "@/features/organizations/db/organizationUserSettings";
-// import {
-//   deleteOrganization,
-//   insertOrganization,
-//   updateOrganization,
-// } from "@/features/organizations/db/organizations";
-// import {
-//   deleteOrganizationUserSettings,
-//   insertOrganizationUserSettings,
-// } from "@/features/organizations/db/organizationUserSettings";
 
 function verifyWebhook({
   raw,

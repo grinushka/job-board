@@ -3,12 +3,13 @@ import {
   JobListingTable,
   UserFavoriteJobsTable,
 } from "@/drizzle/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Suspense } from "react";
 import { cacheTag } from "next/dist/server/use-cache/cache-tag";
+import { getUserFavoriteJobsGlobalTag } from "@/features/favoriteJobs/db/cache/favoriteJobs";
+import { getJobListingGlobalTag } from "@/features/jobListings/db/cache/jobListings";
 import { getOrganizationIdTag } from "@/features/organizations/db/cache/organizations";
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
-import { getUserFavoriteJobsGlobalTag } from "@/features/favoriteJobs/db/cache/favoriteJobs";
 import JobListingItemsClient from "@/features/favoriteJobs/components/JobListingItemsClient";
 
 export function FavoriteJobListingItems() {
@@ -21,30 +22,34 @@ export function FavoriteJobListingItems() {
 
 async function SuspendedComponent() {
   const { userId } = await getCurrentUser();
-  const jobListings = await getJobListings();
   const favoriteJobs = await getUserFavoriteJobs(userId);
 
   if (favoriteJobs.length === 0) {
     return (
       <div className="text-muted-foreground p-4">No job listings found</div>
-    );  
+    );
   }
+
+  const jobListings = await getPublishedFavoriteJobListings(favoriteJobs);
 
   return (
     <JobListingItemsClient
-      jobListings={jobListings.filter(jobListing => favoriteJobs.includes(jobListing.id))}
+      jobListings={jobListings}
       favoriteJobs={favoriteJobs}
       isFavoriteAllowed={userId !== null}
     />
   );
 }
 
-async function getJobListings() {
+async function getPublishedFavoriteJobListings(favoriteJobIds: string[]) {
   "use cache";
-  cacheTag(getUserFavoriteJobsGlobalTag());
+  cacheTag(getJobListingGlobalTag());
 
   const data = await db.query.JobListingTable.findMany({
-    where: and(eq(JobListingTable.status, "published")),
+    where: and(
+      eq(JobListingTable.status, "published"),
+      inArray(JobListingTable.id, favoriteJobIds)
+    ),
     with: {
       organization: {
         columns: {

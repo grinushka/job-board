@@ -1,5 +1,5 @@
 import { UserSettingsSidebar } from "@/app/(job-seeker)/_shared/UserSettingsSidebar";
 
-export default function UserResumeSidebar() {
+export default function UserNotificationsSidebar() {
   return <UserSettingsSidebar />;
 }

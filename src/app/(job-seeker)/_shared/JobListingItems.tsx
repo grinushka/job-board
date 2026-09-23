@@ -1,20 +1,14 @@
-import { db } from "@/drizzle/db";
 import {
   experienceLevels,
-  JobListingTable,
   jobListingTypes,
   locationRequirements,
-  UserFavoriteJobsTable,
 } from "@/drizzle/schema";
-import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { getUserFavoriteJobs } from "@/features/favoriteJobs/db/favoriteJobs";
+import JobListingItemsClient from "@/features/favoriteJobs/components/JobListingItemsClient";
+import { getPublishedJobListings } from "@/features/jobListings/db/jobListings";
+import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
 import { Suspense } from "react";
 import { z } from "zod";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
-import { getJobListingGlobalTag } from "@/features/jobListings/db/cache/jobListings";
-import { getOrganizationIdTag } from "@/features/organizations/db/cache/organizations";
-import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
-import { getUserFavoriteJobsGlobalTag } from "@/features/favoriteJobs/db/cache/favoriteJobs";
-import JobListingItemsClient from "@/features/favoriteJobs/components/JobListingItemsClient";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[]>>
@@ -49,7 +43,7 @@ async function SuspendedComponent({ searchParams, params }: Props) {
   const search = success ? data : {};
 
   const { userId } = await getCurrentUser();
-  const jobListings = await getJobListings(search, jobListingId);
+  const jobListings = await getPublishedJobListings(search, jobListingId);
   const favoriteJobs = await getUserFavoriteJobs(userId);
 
   if (jobListings.length === 0) {
@@ -66,96 +60,4 @@ async function SuspendedComponent({ searchParams, params }: Props) {
       search={search}
     />
   );
-}
-
-async function getJobListings(
-  searchParams: z.infer<typeof searchParamsSchema>,
-  jobListingId: string | undefined
-) {
-  "use cache";
-  cacheTag(getJobListingGlobalTag());
-
-  const whereConditions: (SQL | undefined)[] = [];
-  if (searchParams.title) {
-    whereConditions.push(
-      ilike(JobListingTable.title, `%${searchParams.title}%`)
-    );
-  }
-
-  if (searchParams.locationRequirement) {
-    whereConditions.push(
-      eq(JobListingTable.locationRequirement, searchParams.locationRequirement)
-    );
-  }
-
-  if (searchParams.city) {
-    whereConditions.push(ilike(JobListingTable.city, `%${searchParams.city}%`));
-  }
-
-  if (searchParams.state) {
-    whereConditions.push(
-      eq(JobListingTable.stateAbbreviation, searchParams.state)
-    );
-  }
-
-  if (searchParams.experience) {
-    whereConditions.push(
-      eq(JobListingTable.experienceLevel, searchParams.experience)
-    );
-  }
-
-  if (searchParams.type) {
-    whereConditions.push(eq(JobListingTable.type, searchParams.type));
-  }
-
-  if (searchParams.jobIds) {
-    whereConditions.push(
-      or(...searchParams.jobIds.map(jobId => eq(JobListingTable.id, jobId)))
-    );
-  }
-
-  const data = await db.query.JobListingTable.findMany({
-    where: or(
-      jobListingId
-        ? and(
-          eq(JobListingTable.status, "published"),
-          eq(JobListingTable.id, jobListingId)
-        )
-        : undefined,
-      and(eq(JobListingTable.status, "published"), ...whereConditions)
-    ),
-    with: {
-      organization: {
-        columns: {
-          id: true,
-          name: true,
-          imageUrl: true,
-        },
-      },
-    },
-    orderBy: [desc(JobListingTable.isFeatured), desc(JobListingTable.postedAt)],
-  });
-
-  data.forEach(listing => {
-    cacheTag(getOrganizationIdTag(listing.organization.id));
-  });
-
-  return data;
-} 
-
-export async function getUserFavoriteJobs(userId: string | null): Promise<string[]> {
-  "use cache";
-
-  if (userId == null) return [];
-  
-  cacheTag(getUserFavoriteJobsGlobalTag());
-
-  return (await db.query.UserFavoriteJobsTable.findFirst({
-    where: and(
-      eq(UserFavoriteJobsTable.userId, userId),
-    ),
-    columns: { 
-      favoriteJobIds: true, 
-    },
-  }))?.favoriteJobIds ?? [];
 }

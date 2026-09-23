@@ -6,17 +6,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Suspense } from "react";
-import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
-import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { getUserResumeIdTag } from "@/features/users/db/cache/userResumes";
-import { db } from "@/drizzle/db";
-import { UserResumeTable } from "@/drizzle/schema";
-import { eq } from "drizzle-orm";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
+import { Button } from "@/components/ui/button";
+import { getUserResume } from "@/features/users/db/userResumes";
+import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { DropzoneClient } from "./_DropzoneClient";
 
 export default function UserResumePage() {
@@ -81,13 +77,4 @@ async function AISummaryCard() {
       </CardContent>
     </Card>
   );
-}
-
-async function getUserResume(userId: string) {
-  "use cache";
-  cacheTag(getUserResumeIdTag(userId));
-
-  return db.query.UserResumeTable.findFirst({
-    where: eq(UserResumeTable.userId, userId),
-  });
 }

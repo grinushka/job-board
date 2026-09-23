@@ -1,9 +1,5 @@
-import { db } from "@/drizzle/db";
-import { JobListingTable } from "@/drizzle/schema";
-import { getJobListingOrganizationTag } from "@/features/jobListings/db/cache/jobListings";
+import { getMostRecentOrganizationJobListing } from "@/features/jobListings/db/jobListings";
 import { getCurrentOrganization } from "@/services/clerk/lib/getCurrentAuth";
-import { desc, eq } from "drizzle-orm";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -21,22 +17,11 @@ async function SuspendedPage() {
     return null;
   };
 
-  const jobListing = await getMostRecentJobListing(orgId);
+  const jobListing = await getMostRecentOrganizationJobListing(orgId);
 
   if (jobListing == null) {
     redirect("/employer/job-listings/new");
   } else {
     redirect(`/employer/job-listings/${jobListing.id}`);
   }
-}
-
-async function getMostRecentJobListing(orgId: string) {
-  "use cache";
-  cacheTag(getJobListingOrganizationTag(orgId));
-
-  return db.query.JobListingTable.findFirst({
-    where: eq(JobListingTable.organizationId, orgId),
-    orderBy: desc(JobListingTable.createdAt),
-    columns: { id: true },
-  });
 }

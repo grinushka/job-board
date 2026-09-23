@@ -10,25 +10,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { db } from "@/drizzle/db";
-import {
-  JobListingApplicationTable,
-  JobListingStatus,
-  JobListingTable,
-} from "@/drizzle/schema";
-import { getJobListingOrganizationTag } from "@/features/jobListings/db/cache/jobListings";
+import { JobListingStatus } from "@/drizzle/schema";
+import { getOrganizationJobListingsForSidebar } from "@/features/jobListings/db/jobListings";
 import { sortJobListingsByStatus } from "@/features/jobListings/lib/utils";
 import { SidebarOrganizationButton } from "@/features/organizations/components/SidebarOrganizationButton";
 import { getCurrentOrganization } from "@/services/clerk/lib/getCurrentAuth";
 import { hasOrgUserPermission } from "@/services/clerk/lib/orgUserPermissions";
-import { count, desc, eq } from "drizzle-orm";
 import { ClipboardListIcon, PlusIcon } from "lucide-react";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ReactNode, Suspense } from "react";
 import { JobListingMenuGroup } from "./JobListingMenuGroup";
-import { getJobListingApplicationJobListingTag } from "@/features/jobListingsApplications/db/cache/jobListingsApplications";
 
 export default function EmployerLayout({ children }: { children: ReactNode }) {
   return (
@@ -83,7 +75,7 @@ async function LayoutSuspense({ children }: { children: ReactNode }) {
 }
 
 async function JobListingMenu({ orgId }: { orgId: string }) {
-  const jobListings = await getJobListings(orgId);
+  const jobListings = await getOrganizationJobListingsForSidebar(orgId);
 
   if (
     jobListings.length === 0 &&
@@ -119,31 +111,4 @@ async function JobListingMenu({ orgId }: { orgId: string }) {
       jobListings={jobListings}
     />
   ));
-}
-
-async function getJobListings(orgId: string) {
-  "use cache";
-  cacheTag(getJobListingOrganizationTag(orgId));
-
-  const data = await db
-    .select({
-      id: JobListingTable.id,
-      title: JobListingTable.title,
-      status: JobListingTable.status,
-      applicationCount: count(JobListingApplicationTable.userId),
-    })
-    .from(JobListingTable)
-    .where(eq(JobListingTable.organizationId, orgId))
-    .leftJoin(
-      JobListingApplicationTable,
-      eq(JobListingTable.id, JobListingApplicationTable.jobListingId)
-    )
-    .groupBy(JobListingApplicationTable.jobListingId, JobListingTable.id)
-    .orderBy(desc(JobListingTable.createdAt));
-
-  data.forEach(jobListing => {
-    cacheTag(getJobListingApplicationJobListingTag(jobListing.id));
-  });
-
-  return data;
 }

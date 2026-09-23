@@ -1,6 +1,32 @@
 import { db } from "@/drizzle/db";
 import { UserFavoriteJobsTable } from "@/drizzle/schema";
-import { revalidateUserFavoriteJobsCache } from "./cache/favoriteJobs";
+import { eq } from "drizzle-orm";
+import { cacheTag } from "next/dist/server/use-cache/cache-tag";
+import {
+  getUserFavoriteJobsUserTag,
+  revalidateUserFavoriteJobsCache,
+} from "./cache/favoriteJobs";
+
+export async function getUserFavoriteJobs(
+  userId: string | null
+): Promise<string[]> {
+  "use cache";
+
+  if (userId == null) return [];
+
+  cacheTag(getUserFavoriteJobsUserTag(userId));
+
+  return (
+    (
+      await db.query.UserFavoriteJobsTable.findFirst({
+        where: eq(UserFavoriteJobsTable.userId, userId),
+        columns: {
+          favoriteJobIds: true,
+        },
+      })
+    )?.favoriteJobIds ?? []
+  );
+}
 
 export async function updateUserFavoriteJobsDb(
   userId: string,

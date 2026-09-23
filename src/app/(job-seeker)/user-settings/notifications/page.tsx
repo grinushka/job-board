@@ -1,12 +1,8 @@
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Card, CardContent } from "@/components/ui/card";
-import { db } from "@/drizzle/db";
-import { UserNotificationSettingsTable } from "@/drizzle/schema";
 import { NotificationsForm } from "@/features/users/components/NotificationsForm";
-import { getUserNotificationSettingsIdTag } from "@/features/users/db/cache/userNotificationSettings";
+import { getUserNotificationSettings } from "@/features/users/db/userNotificationSettings";
 import { getCurrentUser } from "@/services/clerk/lib/getCurrentAuth";
-import { eq } from "drizzle-orm";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -37,20 +33,7 @@ async function SuspendedComponent() {
 }
 
 async function SuspendedForm({ userId }: { userId: string }) {
-  const notificationSettings = await getNotificationSettings(userId);
+  const notificationSettings = await getUserNotificationSettings(userId);
 
   return <NotificationsForm notificationSettings={notificationSettings} />;
-}
-
-async function getNotificationSettings(userId: string) {
-  "use cache";
-  cacheTag(getUserNotificationSettingsIdTag(userId));
-
-  return db.query.UserNotificationSettingsTable.findFirst({
-    where: eq(UserNotificationSettingsTable.userId, userId),
-    columns: {
-      aiPrompt: true,
-      newJobEmailNotifications: true,
-    },
-  });
 }

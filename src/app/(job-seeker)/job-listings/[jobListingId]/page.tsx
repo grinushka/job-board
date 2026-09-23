@@ -5,12 +5,6 @@ import { Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ClientSheet } from "./_ClientSheet";
 import { SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { db } from "@/drizzle/db";
-import { and, eq } from "drizzle-orm";
-import { JobListingApplicationTable, JobListingTable, UserResumeTable } from "@/drizzle/schema";
-import { getJobListingIdTag } from "@/features/jobListings/db/cache/jobListings";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
-import { getOrganizationIdTag } from "@/features/organizations/db/cache/organizations";
 import { convertSearchParamsToString } from "@/lib/convertSearchParamsToString";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { notFound } from "next/navigation";
@@ -18,6 +12,7 @@ import { XIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { JobListingBadges } from "@/features/jobListings/components/JobListingBadges";
+import { getPublishedJobListing } from "@/features/jobListings/db/jobListings";
 import { MarkdownRenderer } from "@/components/markdown/MarkdownRenderer";
 import { getNameInitials } from "@/lib/getNameInitials";
 import { SignUpButton } from "@/services/clerk/components/AuthButtons";
@@ -26,9 +21,9 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { connection } from "next/server";
 import { differenceInDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { getJobListingApplicationIdTag } from "@/features/jobListingsApplications/db/cache/jobListingsApplications";
-import { getUserResumeIdTag } from "@/features/users/db/cache/userResumes";
+import { getJobListingApplication } from "@/features/jobListingsApplications/db/jobListingsApplications";
 import { NewJobListingApplicationForm } from "@/features/jobListingsApplications/components/NewJobListingApplicationForm";
+import { getUserResume } from "@/features/users/db/userResumes";
 
 export default async function JobListingPage({
   params,
@@ -93,7 +88,7 @@ async function JobListingDetails({
   searchParams: Promise<Record<string, string | string[]>>
 }) {
   const { jobListingId } = await params;
-  const jobListing = await getJobListing(jobListingId);
+  const jobListing = await getPublishedJobListing(jobListingId);
   if (jobListing == null) return notFound();
 
   const nameInitials = getNameInitials(jobListing.organization.name, 4);
@@ -230,59 +225,4 @@ async function ApplyButton({ jobListingId }: { jobListingId: string }) {
       </DialogContent>
     </Dialog>
   );
-}
-
-async function getUserResume(userId: string) {
-  "use cache";
-  cacheTag(getUserResumeIdTag(userId));
-
-  return db.query.UserResumeTable.findFirst({
-    where: eq(UserResumeTable.userId, userId),
-  });
-}
-
-async function getJobListingApplication({
-  jobListingId,
-  userId,
-}: {
-  jobListingId: string
-  userId: string
-}) {
-  "use cache";
-  cacheTag(getJobListingApplicationIdTag({ jobListingId, userId }));
-
-  return db.query.JobListingApplicationTable.findFirst({
-    where: and(
-      eq(JobListingApplicationTable.jobListingId, jobListingId),
-      eq(JobListingApplicationTable.userId, userId)
-    ),
-  });
-}
-
-
-async function getJobListing(id: string) {
-  "use cache";
-  cacheTag(getJobListingIdTag(id));
-
-  const listing = await db.query.JobListingTable.findFirst({
-    where: and(
-      eq(JobListingTable.id, id),
-      eq(JobListingTable.status, "published")
-    ),
-    with: {
-      organization: {
-        columns: {
-          id: true,
-          name: true,
-          imageUrl: true,
-        },
-      },
-    },
-  });
-
-  if (listing != null) {
-    cacheTag(getOrganizationIdTag(listing.organization.id));
-  }
-
-  return listing;
 }

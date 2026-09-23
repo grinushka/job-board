@@ -11,18 +11,15 @@ import {
   insertJobListing,
   updateJobListing as updateJobListingDb,
   deleteJobListing as deleteJobListingDb,
+  getOrganizationJobListing,
+  getPublicJobListings,
 } from "../db/jobListings";
-import { db } from "@/drizzle/db";
-import { and, eq } from "drizzle-orm";
-import { JobListingTable } from "@/drizzle/schema";
-import {
-  getJobListingGlobalTag,
-  getJobListingIdTag,
-} from "../db/cache/jobListings";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { hasOrgUserPermission } from "@/services/clerk/lib/orgUserPermissions";
 import { getNextJobListingStatus } from "../lib/utils";
-import { hasReachedMaxFeaturedJobListings, hasReachedMaxPublishedJobListings } from "../lib/planFeatureHelpers";
+import {
+  hasReachedMaxFeaturedJobListings,
+  hasReachedMaxPublishedJobListings,
+} from "../lib/planFeatureHelpers";
 import { getMatchingJobListings } from "@/services/inngest/ai/getMatchingJobListings";
 
 export async function createJobListing(
@@ -82,7 +79,7 @@ export async function updateJobListing(
     };
   }
 
-  const jobListing = await getJobListing(id, orgId);
+  const jobListing = await getOrganizationJobListing(id, orgId);
   if (jobListing == null) {
     return {
       error: true,
@@ -103,7 +100,7 @@ export async function toggleJobListingStatus(id: string) {
   const { orgId } = await getCurrentOrganization();
   if (orgId == null) return error;
 
-  const jobListing = await getJobListing(id, orgId);
+  const jobListing = await getOrganizationJobListing(id, orgId);
   if (jobListing == null) return error;
 
   const newStatus = getNextJobListingStatus(jobListing.status);
@@ -135,7 +132,7 @@ export async function toggleJobListingFeatured(id: string) {
   const { orgId } = await getCurrentOrganization();
   if (orgId == null) return error;
 
-  const jobListing = await getJobListing(id, orgId);
+  const jobListing = await getOrganizationJobListing(id, orgId);
   if (jobListing == null) return error;
 
   const newFeaturedStatus = !jobListing.isFeatured;
@@ -161,7 +158,7 @@ export async function deleteJobListing(id: string) {
   const { orgId } = await getCurrentOrganization();
   if (orgId == null) return error;
 
-  const jobListing = await getJobListing(id, orgId);
+  const jobListing = await getOrganizationJobListing(id, orgId);
   if (jobListing == null) return error;
 
   if (!(await hasOrgUserPermission("job_listings:job_listings_delete"))) {
@@ -209,25 +206,4 @@ export async function getAiJobListingSearchResults(
   }
 
   return { error: false, jobIds: matchedListings };
-}
-
-async function getJobListing(id: string, orgId: string) {
-  "use cache";
-  cacheTag(getJobListingIdTag(id));
-
-  return db.query.JobListingTable.findFirst({
-    where: and(
-      eq(JobListingTable.id, id),
-      eq(JobListingTable.organizationId, orgId)
-    ),
-  });
-}
-
-async function getPublicJobListings() {
-  "use cache";
-  cacheTag(getJobListingGlobalTag());
-
-  return db.query.JobListingTable.findMany({
-    where: eq(JobListingTable.status, "published"),
-  });
 }

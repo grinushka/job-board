@@ -1,7 +1,20 @@
 import { db } from "@/drizzle/db";
 import { UserResumeTable } from "@/drizzle/schema";
-import { revalidateUserResumeCache } from "./cache/userResumes";
 import { eq } from "drizzle-orm";
+import { cacheTag } from "next/dist/server/use-cache/cache-tag";
+import {
+  getUserResumeIdTag,
+  revalidateUserResumeCache,
+} from "./cache/userResumes";
+
+export async function getUserResume(userId: string) {
+  "use cache";
+  cacheTag(getUserResumeIdTag(userId));
+
+  return db.query.UserResumeTable.findFirst({
+    where: eq(UserResumeTable.userId, userId),
+  });
+}
 
 export async function upsertUserResume(
   userId: string,

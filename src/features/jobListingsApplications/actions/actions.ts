@@ -1,25 +1,26 @@
 "use server";
 
-import { db } from "@/drizzle/db";
 import {
   ApplicationStage,
   applicationStages,
-  JobListingTable,
-  UserResumeTable,
 } from "@/drizzle/schema";
-import { getJobListingIdTag } from "@/features/jobListings/db/cache/jobListings";
-import { getUserResumeIdTag } from "@/features/users/db/cache/userResumes";
+import {
+  getJobListingById,
+  getPublishedJobListing,
+} from "@/features/jobListings/db/jobListings";
+import { getUserResume } from "@/features/users/db/userResumes";
 import {
   getCurrentOrganization,
   getCurrentUser,
 } from "@/services/clerk/lib/getCurrentAuth";
-import { and, eq } from "drizzle-orm";
-import { cacheTag } from "next/dist/server/use-cache/cache-tag";
 import { z } from "zod";
 import { newJobListingApplicationSchema } from "./schemas";
 import { inngest } from "@/services/inngest/client";
 import { hasOrgUserPermission } from "@/services/clerk/lib/orgUserPermissions";
-import { insertJobListingApplication, updateJobListingApplication } from "../db/jobListingsApplications";
+import {
+  insertJobListingApplication,
+  updateJobListingApplication,
+} from "../db/jobListingsApplications";
 
 export async function createJobListingApplication(
   jobListingId: string,
@@ -35,7 +36,7 @@ export async function createJobListingApplication(
 
   const [userResume, jobListing] = await Promise.all([
     getUserResume(userId),
-    getPublicJobListing(jobListingId),
+    getPublishedJobListing(jobListingId),
   ]);
   
   if (userResume == null || jobListing == null) return permissionError;
@@ -97,7 +98,7 @@ export async function updateJobListingApplicationStage(
   }
 
   const { orgId } = await getCurrentOrganization();
-  const jobListing = await getJobListing(jobListingId);
+  const jobListing = await getJobListingById(jobListingId);
   if (
     orgId == null ||
     jobListing == null ||
@@ -152,7 +153,7 @@ export async function updateJobListingApplicationRating(
   }
 
   const { orgId } = await getCurrentOrganization();
-  const jobListing = await getJobListing(jobListingId);
+  const jobListing = await getJobListingById(jobListingId);
   if (
     orgId == null ||
     jobListing == null ||
@@ -171,37 +172,4 @@ export async function updateJobListingApplicationRating(
     },
     { rating }
   );
-}
-
-async function getPublicJobListing(id: string) {
-  "use cache";
-  cacheTag(getJobListingIdTag(id));
-
-  return db.query.JobListingTable.findFirst({
-    where: and(
-      eq(JobListingTable.id, id),
-      eq(JobListingTable.status, "published")
-    ),
-    columns: { id: true },
-  });
-}
-
-async function getJobListing(id: string) {
-  "use cache";
-  cacheTag(getJobListingIdTag(id));
-
-  return db.query.JobListingTable.findFirst({
-    where: eq(JobListingTable.id, id),
-    columns: { organizationId: true },
-  });
-}
-
-async function getUserResume(userId: string) {
-  "use cache";
-  cacheTag(getUserResumeIdTag(userId));
-
-  return db.query.UserResumeTable.findFirst({
-    where: eq(UserResumeTable.userId, userId),
-    columns: { userId: true },
-  });
 }

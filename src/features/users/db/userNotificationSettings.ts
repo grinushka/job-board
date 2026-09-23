@@ -1,6 +1,24 @@
 import { db } from "@/drizzle/db";
 import { UserNotificationSettingsTable } from "@/drizzle/schema";
-import { revalidateUserNotificationSettingsCache } from "./cache/userNotificationSettings";
+import { eq } from "drizzle-orm";
+import { cacheTag } from "next/dist/server/use-cache/cache-tag";
+import {
+  getUserNotificationSettingsIdTag,
+  revalidateUserNotificationSettingsCache,
+} from "./cache/userNotificationSettings";
+
+export async function getUserNotificationSettings(userId: string) {
+  "use cache";
+  cacheTag(getUserNotificationSettingsIdTag(userId));
+
+  return db.query.UserNotificationSettingsTable.findFirst({
+    where: eq(UserNotificationSettingsTable.userId, userId),
+    columns: {
+      aiPrompt: true,
+      newJobEmailNotifications: true,
+    },
+  });
+}
 
 export async function insertUserNotificationSettings(
   settings: typeof UserNotificationSettingsTable.$inferInsert
